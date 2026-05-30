@@ -1,17 +1,27 @@
 {
   "_tts_options": "piper, borg, espeak",
   "tts_backend": "piper",
-  "_backend_options": "google, keyboard,",
-  "stt_backend": "google",
+  "_backend_options": "google, keyboard, vosk,",
+  "stt_backend": "vosk",
   "_ai_options": "openai, echo, ollama,",
   "ai_backend": "ollama",
   "ui_backend": "simple",
   "openai_model": "gpt-3.5-turbo",
   "ollama_base_url": "http://localhost:11434/v1",
   "ollama_model": "llama3.2:1b",
+  "vosk_model_path": "models/vosk/vosk-model-small-en-us-0.15",
+  "vosk_sample_rate": 48000,
+  "vosk_chunk_size": 4096,
   "ignore_stt_while_speaking": true,
   "speech_cooldown_seconds": 7.75,
-  "barge_in_commands": ["stop", "cancel", "enough", "genoeg", "hou op", "stil"],
+  "barge_in_commands": [
+    "stop",
+    "cancel",
+    "enough",
+    "genoeg",
+    "hou op",
+    "stil"
+  ],
   "mic_index": 1,
   "sample_rate": 48000,
   "chunk_size": 1024,
@@ -20,7 +30,6 @@
   "dynamic_energy_threshold": false,
   "piper_model": "voices/piper/en_US-joe-medium.onnx",
   "piper_player": "aplay",
-  "stt_backend": "keyboard",
   "wake_words": [
     "borg",
     "computer",
@@ -60,5 +69,7 @@
   "error_log": "capohm_errors.log",
   "espeak_voice": "en+m3",
   "espeak_speed": 140,
-  "espeak_pitch": 45
+  "espeak_pitch": 45,
+  "vosk_input_sample_rate": 48000,
+  "vosk_recognition_sample_rate": 16000
 }
