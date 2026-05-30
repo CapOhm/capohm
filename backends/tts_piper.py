@@ -74,3 +74,9 @@ class TTS:
                 pass
 
         self.process = None
+    def is_speaking(self) -> bool:
+        if self.process and self.process.poll() is None:
+            return True
+        if self.thread and self.thread.is_alive():
+            return True
+        return False

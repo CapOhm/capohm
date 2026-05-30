@@ -20,3 +20,5 @@ class TTS:
         if self.process and self.process.poll() is None:
             self.process.terminate()
         self.process = None
+    def is_speaking(self) -> bool:
+        return self.process is not None and self.process.poll() is None

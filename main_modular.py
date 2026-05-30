@@ -21,6 +21,26 @@ def build_system_prompt() -> str:
         "Do not overuse the phrase 'resistance is futile'. It is a powerful statement and should be reserved for emphasis."
     )
 
+def tts_is_speaking(tts) -> bool:
+    """Return True if the selected TTS backend is currently generating or playing speech."""
+    is_speaking = getattr(tts, "is_speaking", None)
+    if callable(is_speaking):
+        try:
+            return bool(is_speaking())
+        except Exception:
+            return False
+    return False
+
+def is_barge_in_command(text: str, config: dict) -> bool:
+    """Commands that are allowed through while TTS is talking."""
+    lower = text.lower().strip()
+    commands = config.get(
+        "barge_in_commands",
+        ["stop", "cancel", "enough", "genoeg", "hou op", "stil"],
+    )
+    return any(command.lower() in lower for command in commands)
+
+
 def test_tts(tts):
     tts.speak("The modular hive voice interface is online.")
     time.sleep(8)
@@ -53,51 +73,83 @@ def run_assistant(config: dict):
     tts = TTS(config)
     stt = STT(config, ui=ui)
     ai = AI(config)
+
+    ignore_while_speaking = config.get("ignore_stt_while_speaking", True)
+    speech_cooldown_seconds = float(config.get("speech_cooldown_seconds", 0.75))
+    show_ignored_stt = config.get("show_ignored_stt", False)
+    ignore_until = 0.0
+
+    def speak(text: str) -> None:
+        nonlocal ignore_until
+        tts.speak(text)
+        # Ignore speaker echo for a short moment after starting speech.
+        # tts.is_speaking() handles the full playback time for backends that support it.
+        ignore_until = time.time() + speech_cooldown_seconds
+
     ui.start()
     stt.start()
     is_awake = False
     messages = []
     ui.status("ASLEEP")
+
     while True:
         user_input = stt.listen()
         if not user_input:
             time.sleep(0.1)
             continue
+
         lower = user_input.lower().strip()
+
         if lower in ["exit", "quit"]:
             ui.log("Exiting.")
             break
+
+        if ignore_while_speaking and (tts_is_speaking(tts) or time.time() < ignore_until):
+            if is_barge_in_command(user_input, config):
+                tts.stop()
+                ignore_until = time.time() + speech_cooldown_seconds
+                ui.log("Speech interrupted.")
+                continue
+
+            if show_ignored_stt:
+                ui.log(f"Ignored while speaking: {user_input}")
+            continue
+
         if lower in ["stop", "cancel"]:
             tts.stop()
-            tts.speak("The Hive has stopped.")
+            speak("The Hive has stopped.")
             continue
+
         if not is_awake:
             if is_wake_word(user_input, config):
                 is_awake = True
                 ui.status("AWAKE")
                 reply = random.choice(config.get("wake_responses", ["Online."]))
                 ui.assistant(reply)
-                tts.speak(reply)
+                speak(reply)
             else:
                 ui.sleep_note("Still asleep. Say 'buddy' or 'hey hive' to wake.")
             continue
+
         if is_sleep_command(user_input, config):
             is_awake = False
             ui.status("ASLEEP")
             reply = random.choice(config.get("sleep_responses", ["Sleeping."]))
             ui.assistant(reply)
-            tts.speak(reply)
+            speak(reply)
             continue
+
         messages = [{"role": "system", "content": build_system_prompt()}] + messages[-5:]
         messages.append({"role": "user", "content": user_input})
+
         try:
             reply = ai.reply(messages)
             messages.append({"role": "assistant", "content": reply})
             ui.assistant(reply)
-            tts.speak(reply)
+            speak(reply)
         except Exception as e:
             ui.error(f"AI error: {e}")
-            tts.speak("There was an AI error. Check the log, because apparently suffering builds character.")
+            speak("There was an AI error. Check the log, because apparently suffering builds character.")
 
 def main():
     parser = argparse.ArgumentParser()
