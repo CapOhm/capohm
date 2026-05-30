@@ -1,11 +1,15 @@
 {
   "_tts_options": "piper, borg, espeak",
   "tts_backend": "piper",
-  "_backend_options": "google, keyboard, vosk,",
+  "_backend_options": "google, keyboard, vosk, hybrid",
   "stt_backend": "vosk",
   "_ai_options": "openai, echo, ollama,",
   "ai_backend": "ollama",
   "ui_backend": "simple",
+  "_character_options": "borg, natural, grumpy_shopkeeper",
+  "character": "grumpy_shopkeeper",
+  "characters_dir": "characters",
+  "allow_voice_character_switch": true,
   "openai_model": "gpt-3.5-turbo",
   "ollama_base_url": "http://localhost:11434/v1",
   "ollama_model": "llama3.2:1b",
@@ -70,6 +74,6 @@
   "espeak_voice": "en+m3",
   "espeak_speed": 140,
   "espeak_pitch": 45,
-  "vosk_input_sample_rate": 48000,
-  "vosk_recognition_sample_rate": 16000
+  "primary_stt_backend": "vosk",
+  "keyboard_overlay": true
 }
