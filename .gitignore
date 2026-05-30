@@ -31,3 +31,4 @@ create_modular_v1.sh
 chat_dev_before_clean_ui.py
 *_backup.py
 *_before_*.py
+capohm_modular_v1*
