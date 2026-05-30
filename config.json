@@ -1,6 +1,7 @@
 {
   "_tts_options": "piper, borg, espeak",
   "tts_backend": "piper",
+  "_backend_options": "google, keyboard,",
   "stt_backend": "google",
   "_ai_options": "openai, echo, ollama,",
   "ai_backend": "ollama",
@@ -19,6 +20,7 @@
   "dynamic_energy_threshold": false,
   "piper_model": "voices/piper/en_US-joe-medium.onnx",
   "piper_player": "aplay",
+  "stt_backend": "keyboard",
   "wake_words": [
     "borg",
     "computer",
