@@ -20,3 +20,14 @@ trash/
 crowdetect/train/
 crowdetect/valid/
 crowdetect/test/chat_dev_before_clean_ui.py
+
+# Local logs / generated files
+*.log
+capohm_modular_v1.zip
+capohm_modular_v1.sh
+create_modular_v1.sh
+
+# Local backups
+chat_dev_before_clean_ui.py
+*_backup.py
+*_before_*.py
