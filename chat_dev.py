@@ -9,11 +9,34 @@ import numpy as np
 import time
 import json
 import os
-import ordering
+# import ordering  # disabled: pyautogui needs a desktop display
 import sys
 import shutil
 import inventorymod
 import ascii_animation
+
+# ========== Clean terminal / logging setup ==========
+# Keep noisy ALSA/JACK/PyAudio messages out of the terminal UI.
+LOG_FILE = "capohm_errors.log"
+try:
+    _stderr_log = open(LOG_FILE, "a", buffering=1)
+    os.dup2(_stderr_log.fileno(), 2)
+except Exception:
+    _stderr_log = None
+
+print_lock = threading.Lock()
+_last_status = None
+
+def safe_print(message=""):
+    with print_lock:
+        print(str(message), flush=True)
+
+def log_error(prefix, error):
+    try:
+        with open(LOG_FILE, "a", buffering=1) as log:
+            log.write(f"{time.ctime()} {prefix}: {repr(error)}\n")
+    except Exception:
+        pass
 
 width = shutil.get_terminal_size().columns
 # ========== Capohm Logo & Display Setup ==========
@@ -100,7 +123,7 @@ def code_forge(task_description, language="python"):
 
     try:
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model=AI_MODEL,
             messages=[
                 {"role": "system", "content": f"Write clean {language} code only. No explanations."},
                 {"role": "user", "content": task_description}
@@ -167,35 +190,24 @@ def restore_main_screen(current_state="AWAKE"):
 
 
 def assistant_output(message):
-    # Clear everything from row 28 downward
-    for row in range(28, 40):  # Adjust 40 if your terminal is taller
-        sys.stdout.write(f"\033[{row};0H" + " " * width)
-    sys.stdout.flush()
-    # sys.stdout.write("\033[28;0H" + " " * 120)
-    sys.stdout.write("\033[28;0H\033[93mAssistant: " + message.strip() + "\033[0m\n")
-    # sys.stdout.write("\033[28;0HAssistant: " + message.strip() + "\n")
-    sys.stdout.flush()
+    """Clean line-based assistant output. No cursor positioning, no screen corruption."""
+    msg = str(message).strip()
+    if msg:
+        safe_print(f"\n🤖 Assistant: {msg}\n")
 
 
 def heard_message(message=""):
-    sys.stdout.write("\033[26;20H" + " " * (width - 20))  # Clear right of spinner
-    sys.stdout.write("\033[26;20H" + message)
-    sys.stdout.flush()
+    msg = str(message).strip()
+    if msg:
+        safe_print(f"🎧 {msg}")
 
 
 def update_status_line(state):
-    sys.stdout.write("\033[24;100H" + " " * 20)  # Clear old status
-    if state == "AWAKE":
-        sys.stdout.write("\033[24;100H\033[92mSystem: AWAKE\033[0m")  # Green
-    else:
-        sys.stdout.write("\033[24;100H\033[91mSystem: ASLEEP\033[0m")  # Red
-    sys.stdout.flush()
+    global _last_status
+    if state != _last_status:
+        _last_status = state
+        safe_print(f"[System: {state}]")
 
-
-# def update_status_line(state):
-#    sys.stdout.write("\033[24;100H" + " " * 20)  # Clear old status
-#    sys.stdout.write("\033[24;100HSystem: " + state)
-#    sys.stdout.flush()
 
 def nudge_mouse():
     try:
@@ -204,56 +216,23 @@ def nudge_mouse():
         subprocess.run(["xdotool", "mousemove_relative", "--", "-1", "0"], stdout=subprocess.DEVNULL,
                        stderr=subprocess.DEVNULL)
     except Exception as e:
-        print(f"⚠️ Screen nudge failed: {e}")
+        log_error("Screen nudge failed", e)
 
 
 def visual_loop():
-    global width
-    spinner_frames = ["░", "▒", "▓", "█", "▓", "▒"]
-    idx = 0
-    logo_visible = True
-    logo_timer = time.time()
-    width = shutil.get_terminal_size().columns
-
-    os.system('clear')
-    print_capohm_logo()
-
-    sys.stdout.write("\033[25;0H" + "\033[94m" + "=" * width + "\033[0m")
-    # sys.stdout.write("\033[25;0H" + "=" * width)
-    update_status_line("AWAKE")
-    # sys.stdout.write("\033[24;100HSystem: AWAKE")
-    sys.stdout.flush()
-
+    """Simple stable UI thread. The old big logo wrapped on small terminals."""
+    safe_print("\n=== CAPOHM / BORG HIVE ===")
+    safe_print("Simple UI mode. Say 'buddy' or 'hey hive' to wake.")
+    safe_print(f"Errors are logged to: {LOG_FILE}\n")
+    update_status_line("ASLEEP")
     while True:
-        now = time.time()
-
-        if now - logo_timer >= 5:
-            logo_visible = not logo_visible
-            logo_timer = now
-
-            if logo_visible:
-                sys.stdout.write("\033[0;0H")
-                print_capohm_logo()
-        # else:
-        #     for _ in range(2):
-        #         for frame in eye_animation_frames:
-        #             for row in range(0, 23):
-        #                 sys.stdout.write(f"\033[{row + 1};0H" + " " * width)
-        #             sys.stdout.write("\033[0;0H")
-        #             print(frame)
-        #             sys.stdout.flush()
-        #             time.sleep(0.3)
-
-        sys.stdout.write("\033[26;0H")
-        sys.stdout.write("Listening " + spinner_frames[idx % len(spinner_frames)] + "   ")
-        sys.stdout.flush()
-        time.sleep(0.2)
-        idx += 1
+        time.sleep(60)
 
 
 # Init OpenAI client
-client = openai.OpenAI(
-    api_key="ai_key")
+# Uses OPENAI_API_KEY from your environment. Do not hardcode API keys here.
+client = openai.OpenAI()
+AI_MODEL = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
 
 MEMORY_FILE = "borg_memory.json"
 MEMORY_LIMIT = 10
@@ -276,9 +255,9 @@ def save_memory():
 
 
 def sleepy_message(message=""):
-    sys.stdout.write("\033[27;0H" + " " * 120)  # Clear old line
-    sys.stdout.write("\033[27;0H" + message)
-    sys.stdout.flush()
+    msg = str(message).strip()
+    if msg:
+        safe_print(f"[sleep] {msg}")
 
 
 # Speak with Borg voice using custom script
@@ -288,7 +267,8 @@ def speak(text):
         speak_process = subprocess.Popen(['./borg_speak.sh', text], stdout=subprocess.DEVNULL,
                                          stderr=subprocess.DEVNULL)
     except Exception as e:
-        print(f"Borg voice failed: {e}")
+        log_error("Borg voice failed", e)
+        safe_print("⚠️ Borg voice failed. See capohm_errors.log.")
 
 
 def stop_speaking():
@@ -300,13 +280,15 @@ def stop_speaking():
 
 # Recognizer setup
 recognizer = sr.Recognizer()
-recognizer.pause_threshold = 1.2
-mic = sr.Microphone(device_index=1)
+recognizer.dynamic_energy_threshold = False
+recognizer.energy_threshold = 300
+recognizer.pause_threshold = 0.8
+mic = sr.Microphone(device_index=1, sample_rate=48000, chunk_size=1024)
 
 # Initial microphone calibration
 with mic as source:
     recognizer.adjust_for_ambient_noise(source, duration=1)
-print("Microphone calibrated.")
+safe_print("Microphone calibrated.")
 
 # Wake/sleep phrases
 WAKE_WORDS = ["borg", "computer", "yo borg", "hey borg", "buddy", "hey buddy", "hey hive", "hive", "good morning",
@@ -360,7 +342,7 @@ def continuous_listen():
                 except sr.UnknownValueError:
                     pass
                 except sr.RequestError:
-                    print("🎧 Background listen: recognition service error.")
+                    log_error("Background listen recognition service error", "RequestError")
             except sr.WaitTimeoutError:
                 continue
 
@@ -428,7 +410,7 @@ def camera_watch():
                         nudge_mouse()
                         face_last_seen = time.time()  # RESET AFTER WAKING
                         reply = random.choice(WAKE_RESPONSES)
-                        sys.stdout.write("\033[28;0HAssistant (camera): " + reply + "\n")
+                        assistant_output("(camera) " + reply)
                         # print(f"Assistant (camera): {reply}\n")
                         speak(reply)
         else:
@@ -449,7 +431,7 @@ def camera_watch():
                 camera_sleep_override = True
                 recent_sleep_command = False
                 # sys.stdout.write("\030[31;0H🔋 No poop face detected for 30s. Entering sleep mode.")
-                sys.stdout.write("\033[28;0H🔋 No face detected for 30s. Entering sleep mode.\n")
+                sleepy_message("No face detected for 30s. Entering sleep mode.")
                 # print("🔋 No face detected for 30s. Entering sleep mode.")
                 face_last_seen = time.time() + 60
 
@@ -511,13 +493,7 @@ def chat():
                 speak("No items need ordering.")
                 time.sleep(3)
             else:
-                assistant_output("📦 Low stock detected.")
-                row = 29
-                for item in low_items:
-                    sys.stdout.write(f"[{row};0H" + " " * width)
-                    sys.stdout.write(f"[{row};0H- {item}")
-                    row += 1
-                sys.stdout.flush()
+                assistant_output("📦 Low stock detected:\n" + "\n".join(f"- {item}" for item in low_items))
 
                 speak("Would you like to order these items? Say yes or no.")
                 time.sleep(5)  # Let the assistant finish speaking
@@ -611,7 +587,7 @@ def chat():
 
         if check_sleep_command(user_input):
             is_awake = False
-            ascii_animation.play_ascii_animation(repeat=1, start_row=1)
+            # ascii_animation disabled in simple UI mode
             update_status_line("ASLEEP")
             camera_sleep_override = True
             recent_sleep_command = True
@@ -633,7 +609,7 @@ def chat():
         messages.append({"role": "user", "content": user_input})
         try:
             response = client.chat.completions.create(
-                model="gpt-3.5-turbo",
+                model=AI_MODEL,
                 messages=messages
             )
             reply = response.choices[0].message.content
@@ -642,7 +618,8 @@ def chat():
             # print(f"Assistant: {reply}\n")
             speak(reply)
         except Exception as e:
-            print(f"Error: {e}")
+            log_error("Chat/API error", e)
+            assistant_output("Chat/API error. Details written to capohm_errors.log.")
 
 
 # (Starting everything like normal)

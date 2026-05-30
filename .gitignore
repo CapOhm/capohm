@@ -19,4 +19,4 @@ trash/
 
 crowdetect/train/
 crowdetect/valid/
-crowdetect/test/
+crowdetect/test/chat_dev_before_clean_ui.py
