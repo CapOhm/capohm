@@ -1,0 +1,13 @@
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+nc: 1
+names: ['crow']
+
+roboflow:
+  workspace: capohm
+  project: crow-ygb8b-qzrgx
+  version: 1
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/capohm/crow-ygb8b-qzrgx/dataset/1

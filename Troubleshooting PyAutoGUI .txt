@@ -1,0 +1,97 @@
+Troubleshooting PyAutoGUI locateOnScreen() Failures
+Possible Causes of Failure
+Screen resolution or scaling changes: If your display resolution or DPI scaling changed, the stored screenshot may no longer match what’s on screen. PyAutoGUI requires a pixel-perfect match – even a one-pixel difference can cause a miss​
+automatetheboringstuff.com
+. Changing resolution or zoom can make previous screenshot images unrecognizable to locateOnScreen.
+Reference image mismatch: The inloggen.png template must exactly match the on-screen button. Any slight UI update or color/antialiasing difference will cause locateOnScreen to return nothing​
+stackoverflow.com
+. For example, if the image was saved with compression (JPEG) and then converted to PNG, subtle artifacts can break the match. (One user found re-saving the image directly as PNG fixed their issue​
+stackoverflow.com
+.) Ensure the reference screenshot is a clean, full-quality PNG of the current button.
+Timing issues (slow page load): Your script might be searching for the “Inloggen” button before it actually appears (e.g. due to page load latency or animations). In such cases, the image won’t be found because it isn’t on the screen yet. PyAutoGUI doesn’t automatically wait, so a fast script can outrun the GUI. This makes the function appear to “fail” intermittently.
+Raspberry Pi environment/permissions: On Raspberry Pi, running the script in the wrong context can cause screenshot functions to fail. PyAutoGUI needs an active GUI (X11 display); if the script runs as a background service or via SSH without an X display, locateOnScreen cannot capture the screen​
+stackoverflow.com
+. Permissions can also be an issue – e.g. if run as root, the script may not have access to the user’s display. Additionally, PyAutoGUI on Linux relies on Pillow or an external tool like scrot for screenshots. If those are missing, image recognition won’t work​
+automatetheboringstuff.com
+.
+Path or file access problems: Ensure the script is actually loading the image file. If the working directory changed (for instance, running under cron or systemd on the Pi), the relative path "images/inloggen.png" may be wrong. In a systemd context, using the absolute path to the image is safer​
+github.com
+. A wrong path will result in a FileNotFound error or a failure to locate (since there’s no image to match against). Always double-check that the image file is found by your script before calling locateOnScreen.
+Recommended Fixes and Fallback Strategies
+Use consistent resolution or update the screenshot: Run the script at the same screen resolution and scaling as when you took the reference screenshot. If you’ve changed resolutions or use a different monitor, recapture the “Inloggen” button on the current setup so it matches pixel-for-pixel​
+automatetheboringstuff.com
+. Also verify the image format – use PNG without any compression (to avoid artifact differences​
+stackoverflow.com
+). Small visual tweaks (like font or color changes) on the site might require updating the inloggen.png image.
+Adjust matching confidence or use grayscale: If the on-screen image is just slightly different (color hue, anti-aliasing, etc.), allow some tolerance. Try lowering the confidence threshold (e.g. from 0.8 to 0.7) to catch near-matches, or enable grayscale matching:
+location = pyautogui.locateOnScreen('images/inloggen.png', confidence=0.7, grayscale=True)
+Using grayscale=True ignores color differences and can help find the image based on shape/intensity​
+stackoverflow.com
+. Keep in mind that using confidence= requires OpenCV; make sure opencv-python is installed so this parameter actually works​
+stackoverflow.com
+. Don’t lower confidence too far (to avoid false positives), but 0.6–0.8 range with grayscale can detect minor variations in the target image.
+Implement a retry loop with delays: Incorporate a wait-retry mechanism to handle timing issues. For example, loop for a few seconds until the image is found or a timeout is reached:
+import pyautogui, time
+MAX_RETRIES = 10
+location = None
+for attempt in range(MAX_RETRIES):
+    location = pyautogui.locateOnScreen('images/inloggen.png', confidence=0.8)
+    if location:
+        break  # found the button
+    time.sleep(1)  # wait 1s before next attempt
+if not location:
+    raise RuntimeError("Login button not found on screen")
+This way, if the page is slow to load, the script will patiently check multiple times. PyAutoGUI’s own API offers a minSearchTime parameter as well – for example, locateOnScreen('inloggen.png', minSearchTime=5) will internally keep searching for 5 seconds before giving up​
+python-forum.io
+. Either approach prevents false failures due to momentary delays.
+Verify Pi display setup and permissions: On Raspberry Pi, run the script in an environment with an active display (the desktop or a virtual X session). If you’re launching via cron or systemd at boot, you may need to specify the display. For example, in a systemd service file, set environment like DISPLAY=:0 (and ensure an X server is running on :0). Avoid running the automation as root unless necessary – if you must, use xhost to grant display access to root, or better, run under the pi user logged into the desktop. Also install any needed dependencies: for instance, scrot (for screenshots) and python3-tk (for the GUI toolkit) are recommended on Raspbian​
+automatetheboringstuff.com
+. You can test the setup by calling pyautogui.screenshot() in a Python REPL on the Pi; if it raises an error or returns a black image, that indicates an environment problem to fix before using locateOnScreen.
+Ensure correct image path: Double-check that the script can actually find "images/inloggen.png". If the script’s working directory isn’t the project folder, construct an absolute path to the image. For example:
+import os
+img_path = os.path.join(os.path.dirname(__file__), "images", "inloggen.png")
+location = pyautogui.locateOnScreen(img_path, confidence=0.8)
+This guarantees the code is loading the right file. (In one case, a user running via systemd found that using the full path resolved their locateOnScreen issue​
+github.com
+.) Also verify the image file isn’t corrupt or accidentally changed. Re-open it to confirm it’s the expected screenshot.
+Additional fallback ideas: If image matching remains flaky, consider alternative approaches. For example, you could narrow the search region if you know roughly where the button appears (region=(x, y, width, height) in locateOnScreen) to reduce false negatives. In critical cases, a different automation method (such as Selenium for web elements or sending keyboard shortcuts to navigate to the login button) can bypass the reliance on image recognition. These can act as fallbacks if PyAutoGUI still struggles to find the “Inloggen” button on screen.
+By addressing the above points – updating the reference image, tweaking confidence/grayscale settings, adding robust waits, and fixing any Raspberry Pi display issues – you should greatly improve the reliability of pyautogui.locateOnScreen("inloggen.png", confidence=0.8) in your ordering script. Each small adjustment will make the image matching more resilient and consistent in the face of environment changes. Good luck!​
+stackoverflow.com
+​
+automatetheboringstuff.com
+Citations
+Automate the Boring Stuff with Python
+
+https://automatetheboringstuff.com/2e/chapter20/
+Favicon
+python - Why PyAutoGui LocateOnScreen() only Returns None - Stack Overflow
+
+https://stackoverflow.com/questions/43702511/why-pyautogui-locateonscreen-only-returns-none
+Favicon
+python - Why PyAutoGui LocateOnScreen() only Returns None - Stack Overflow
+
+https://stackoverflow.com/questions/43702511/why-pyautogui-locateonscreen-only-returns-none
+Favicon
+python 3.x - Using pyautogui in Unix - Stack Overflow
+
+https://stackoverflow.com/questions/71659827/using-pyautogui-in-unix
+Automate the Boring Stuff with Python
+
+https://automatetheboringstuff.com/2e/chapter20/
+Favicon
+Can't run locate_on_Screen in systemd · Issue #680 · asweigart/pyautogui · GitHub
+
+https://github.com/asweigart/pyautogui/issues/680
+Favicon
+python - Why PyAutoGui LocateOnScreen() only Returns None - Stack Overflow
+
+https://stackoverflow.com/questions/43702511/why-pyautogui-locateonscreen-only-returns-none
+Favicon
+How can I loop PyAutoGUI's locateCenterOnScreen until the image is found?
+
+https://python-forum.io/thread-35062.html
+All Sources
+automate...ringstuff
+Faviconstackoverflow
+Favicongithub
+Faviconpython-forum

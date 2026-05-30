@@ -1,0 +1,13 @@
+SpeechRecognition
+pyaudio
+numpy
+opencv-python
+pyautogui
+pytesseract
+openai
+
+# Optional:
+# ultralytics (if YOLO models are still used somewhere)
+
+# System dependencies (install via apt):
+# espeak, sox, paplay/aplay

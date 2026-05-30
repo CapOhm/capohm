@@ -1,0 +1,199 @@
+# version that listens during talking
+import openai
+import subprocess
+import speech_recognition as sr
+import random
+import threading
+import cv2
+import numpy as np
+import time
+import json
+import os
+import pytesseract
+import pyautogui
+import webbrowser
+
+
+# OCR-based automation to launch Chromium and find login button
+def launch_and_click_login():
+    webbrowser.get("chromium-browser").open("https://www.technischeunie.nl")
+    time.sleep(17)  # Let browser load
+
+    print("📸 Searching for 'inloggen' button...")
+    for attempt in range(15):
+        button_location = pyautogui.locateOnScreen("images/inloggen.png", confidence=0.8)
+        if button_location:
+            print("✅ Found 'inloggen' button. Clicking it...")
+            pyautogui.click(pyautogui.center(button_location))
+            return
+        else:
+            print(f"🔄 Attempt {attempt + 1}: Button not found. Retrying...")
+            time.sleep(1)
+
+    print("❌ 'Inloggen' button could not be found after several attempts.")
+
+
+def find_and_type_search(itemnumber="123456789"):
+    print("📸 Looking for search bar...")
+
+    search_location = pyautogui.locateOnScreen("images/search.png", confidence=0.8)
+    if search_location:
+        print("✅ Found search bar via image.")
+        pyautogui.click(pyautogui.center(search_location))
+        time.sleep(0.5)
+        pyautogui.write(itemnumber, interval=0.1)
+        pyautogui.press('enter')
+        print("📜 Scrolling down 3 clicks to reach quantity field...")
+        pyautogui.moveTo(200, 200)
+        time.sleep(5)
+        pyautogui.click()
+        time.sleep(0.5)
+        pyautogui.scroll(-2)
+    else:
+        print("❌ Search bar image not found. Trying OCR as backup...")
+        screenshot = pyautogui.screenshot()
+        screenshot_np = np.array(screenshot)
+        screenshot_rgb = cv2.cvtColor(screenshot_np, cv2.COLOR_BGR2RGB)
+        gray = cv2.cvtColor(screenshot_rgb, cv2.COLOR_RGB2GRAY)
+
+        data = pytesseract.image_to_data(gray, config="--psm 6", output_type=pytesseract.Output.DICT)
+        for i in range(len(data["text"])):
+            if "doorzoek" in data["text"][i].lower():
+                x = data["left"][i] + data["width"][i] // 2
+                y = data["top"][i] + data["height"][i] // 2
+                pyautogui.click(x, y)
+                pyautogui.write(itemnumber, interval=0.1)
+                pyautogui.press('enter')
+                print("✅ Found and typed using OCR fallback.")
+                time.sleep(2)
+                return
+        print("❌ Could not find search bar via OCR either.")
+
+
+def set_quantity_and_add_to_cart(quantity=1):
+    time.sleep(4)
+    print("📦 Looking for quantity input field...")
+    quantity_location = pyautogui.locateOnScreen("images/quantity.png", confidence=0.8)
+    if quantity_location:
+        pyautogui.click(pyautogui.center(quantity_location))
+        time.sleep(0.5)
+        pyautogui.press('delete')
+        time.sleep(0.5)
+        pyautogui.write(str(quantity), interval=0.1)
+        print(f"✅ Quantity set to {quantity}.")
+    else:
+        print("❌ Could not find quantity input field (quantity.png).")
+
+    time.sleep(4)
+    print("🛒 Looking for 'Add to Cart' (wagen.png)...")
+    wagen_location = pyautogui.locateOnScreen("images/wagen.png", confidence=0.8)
+
+    if wagen_location:
+        pyautogui.click(pyautogui.center(wagen_location))
+        print("✅ Clicked 'Add to Cart' button.")
+    else:
+        print("❌ Could not find 'Add to Cart' button (wagen.png).")
+
+    time.sleep(2)
+    print("🧹 Looking for 'Clear' button (clear.png)...")
+    clear_location = pyautogui.locateOnScreen("images/clear.png", confidence=0.8)
+
+    if clear_location:
+        pyautogui.click(pyautogui.center(clear_location))
+        print("✅ Clicked 'Clear' button.")
+    else:
+        print("❌ Could not find 'Clear' button (clear.png).")
+
+        # pyautogui.click(pyautogui.center(wagen_location))
+        # print("✅ Clicked 'Add to Cart' button.")
+    # else:
+    # print("❌ Could not find 'Add to Cart' button (wagen.png).")
+
+
+def bestellen():
+    time.sleep(4)
+    print("🛒 Looking for 'Bestel' button (bestel.png)...")
+    bestel_location = pyautogui.locateOnScreen("images/bestel.png", confidence=0.8)
+
+    if bestel_location:
+        x, y = pyautogui.center(bestel_location)
+        pyautogui.click(x + 30, y + 10)
+        print("✅ Clicked 'Bestel' button.")
+    else:
+        print("❌ Could not find 'Bestel' button (bestel.png).")
+
+    time.sleep(4)
+    pyautogui.moveTo(600, 200)
+    time.sleep(5)
+    pyautogui.click()
+    pyautogui.scroll(200)
+    time.sleep(4)
+
+    print("📋 Looking for 'Referentie' field (referentie.png)...")
+    referentie_location = pyautogui.locateOnScreen("images/referentie.png", confidence=0.8)
+
+    if referentie_location:
+        pyautogui.click(pyautogui.center(referentie_location))
+        time.sleep(0.5)
+        pyautogui.press('backspace', presses=35, interval=0.05)
+        pyautogui.write("Terry - Hive order", interval=0.1)
+        print("✅ Typed reference: Terry - Hive order.")
+    else:
+        print("❌ Could not find 'Referentie' field (referentie.png).")
+
+    time.sleep(2)
+    print("➡️ Looking for 'Volgende' button (volgende.png)...")
+    volgende_location = pyautogui.locateOnScreen("images/volgende.png", confidence=0.8)
+
+    if volgende_location:
+        pyautogui.click(pyautogui.center(volgende_location))
+        print("✅ Clicked 'Volgende' button.")
+        time.sleep(5)
+        pyautogui.click()
+        time.sleep(4)  # turn on to finish the order
+        # pyautogui.click()    #turn on to finish the order
+        print("✅ Clicked 'Volgende' button.")
+    else:
+        print("❌ Could not find 'Volgende' button (volgende.png).")
+
+    time.sleep(15)
+    print("🚪 Looking for 'Exit' button (exit.png)...")
+    exit_location = pyautogui.locateOnScreen("images/exit.png", confidence=0.7)
+
+    if exit_location:
+        x, y = pyautogui.center(exit_location)
+        pyautogui.click(x - 10, y)
+        print("✅ Clicked 'Exit' button.")
+        time.sleep(2)
+        # Move mouse to near top-left and click to finalize cleanly
+        pyautogui.moveTo(50, 50)
+        time.sleep(0.5)
+        pyautogui.click()
+        print("✅ Final click near corner completed.")
+    else:
+        print("❌ Could not find 'Exit' button (exit.png).")
+
+
+if __name__ == "__main__":
+    launch_and_click_login()
+    time.sleep(10)
+
+    orders = []
+
+    if os.path.exists("products.json"):
+        with open("products.json", "r") as f:
+            products = json.load(f)
+
+        for itemnumber, details in products.items():
+            missing = details["threshold"] - details["in_stock"]
+            if missing > 0:
+                orders.append({"itemnumber": itemnumber, "quantity": missing})
+
+    if not orders:
+        print("✅ No items need ordering. Exiting.")
+    else:
+        for order in orders:
+            find_and_type_search(order["itemnumber"])
+            set_quantity_and_add_to_cart(order["quantity"])
+
+        bestellen()

@@ -1,0 +1,22 @@
+{
+    "021103": {
+        "name": "White window",
+        "threshold": 5,
+        "in_stock": 1
+    },
+    "2833697": {
+        "name": "dimmer button",
+        "threshold": 5,
+        "in_stock": 1
+    },
+    "6543644": {
+        "name": "blue wire",
+        "threshold": 5,
+        "in_stock": 5
+    },
+    "6543645": {
+        "name": "green wire",
+        "threshold": 5,
+        "in_stock": 5
+    }
+}
