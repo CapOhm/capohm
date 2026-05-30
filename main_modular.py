@@ -23,6 +23,7 @@ def build_system_prompt() -> str:
 
 def test_tts(tts):
     tts.speak("The modular hive voice interface is online.")
+    time.sleep(8)
 
 def test_ai(ai):
     messages = [
