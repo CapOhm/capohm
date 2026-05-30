@@ -1,0 +1,19 @@
+{
+  "tts_backend": "borg",
+  "stt_backend": "google",
+  "ai_backend": "openai",
+  "ui_backend": "simple",
+  "openai_model": "gpt-3.5-turbo",
+  "mic_index": 1,
+  "sample_rate": 48000,
+  "chunk_size": 1024,
+  "energy_threshold": 300,
+  "pause_threshold": 0.8,
+  "dynamic_energy_threshold": false,
+  "wake_words": ["borg", "computer", "yo borg", "hey borg", "buddy", "hey buddy", "hey hive", "hive", "good morning", "look who is there"],
+  "sleep_commands": ["go to sleep", "sleep", "shut down", "power off", "thank you", "good bye", "yeah yeah"],
+  "wake_responses": ["We are online.", "The Hive is awake.", "Systems fully synchronized.", "Directive acknowledged. Input required.", "Borg King presence confirmed."],
+  "sleep_responses": ["Deactivating active response mode.", "Returning to low-power collective state.", "Hive disengaging.", "Powering down response interface.", "Awaiting next directive."],
+  "borg_script": "./borg_speak.sh",
+  "error_log": "capohm_errors.log"
+}
