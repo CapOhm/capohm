@@ -57,3 +57,5 @@ apply_*_config.py
 __pycache__/
 *.pyc
 EOF
+capohm_stdout.log
+.capohm.pid
