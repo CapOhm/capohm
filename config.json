@@ -1,15 +1,11 @@
 {
   "_tts_options": "piper, borg, espeak",
-  "tts_backend": "piper",
-  "_backend_options": "google, keyboard, vosk, hybrid",
-  "stt_backend": "vosk",
+  "tts_backend": "espeak",
+  "_backend_options": "google, keyboard, vosk,",
+  "stt_backend": "whispercpp_vad",
   "_ai_options": "openai, echo, ollama,",
   "ai_backend": "ollama",
   "ui_backend": "simple",
-  "_character_options": "borg, natural, grumpy_shopkeeper",
-  "character": "grumpy_shopkeeper",
-  "characters_dir": "characters",
-  "allow_voice_character_switch": true,
   "openai_model": "gpt-3.5-turbo",
   "ollama_base_url": "http://localhost:11434/v1",
   "ollama_model": "llama3.2:1b",
@@ -17,7 +13,7 @@
   "vosk_sample_rate": 48000,
   "vosk_chunk_size": 4096,
   "ignore_stt_while_speaking": true,
-  "speech_cooldown_seconds": 7.75,
+  "speech_cooldown_seconds": 0.25,
   "barge_in_commands": [
     "stop",
     "cancel",
@@ -45,6 +41,9 @@
     "hive",
     "good morning",
     "look who is there"
+    "good day"
+    "greetings"
+    "hello"
   ],
   "sleep_commands": [
     "go to sleep",
@@ -54,6 +53,7 @@
     "thank you",
     "good bye",
     "yeah yeah"
+    "bye"
   ],
   "wake_responses": [
     "We are online.",
@@ -74,6 +74,29 @@
   "espeak_voice": "en+m3",
   "espeak_speed": 140,
   "espeak_pitch": 45,
-  "primary_stt_backend": "vosk",
-  "keyboard_overlay": true
+  "echo_suppression_enabled": true,
+  "echo_base_cooldown_seconds": 2.75,
+  "echo_seconds_per_word": 1.0,
+  "echo_max_cooldown_seconds": 15.0,
+  "echo_memory_seconds": 30.0,
+  "echo_similarity_threshold": 0.5,
+  "echo_word_overlap_threshold": 0.5,
+  "echo_short_similarity_threshold": 0.78,
+  "echo_min_words": 2,
+  "echo_tts_speed_factor": null,
+  "echo_tts_speed_factors": {
+    "espeak": 1.0,
+    "piper": 4.15,
+    "borg": 3.5
+  },
+  "show_ignored_stt": true,
+  "primary_stt_backend": "whispercpp_vad",
+  "keyboard_overlay": true,
+  "active_tts_only_barge_in": true,
+  "echo_hard_guard_enabled": true,
+  "echo_hard_guard_fraction": 1.0,
+  "echo_hard_guard_min_seconds": 2.2,
+  "echo_hard_guard_max_seconds": 10.0,
+  "echo_debug_timing": true,
+  "character": "grumpy_shopkeeper"
 }
