@@ -1,19 +1,22 @@
 {
-  "_tts_options": "piper, borg, espeak",
+  "_tts_options": "piper, borg, espeak, piper_fast",
   "tts_backend": "espeak",
-  "_backend_options": "google, keyboard, vosk,",
+  "_backend_options": "google, keyboard, vosk, whispercpp_vad",
   "stt_backend": "whispercpp_vad",
-  "_ai_options": "openai, echo, ollama,",
+  "_ai_options": "openai, echo, ollama",
   "ai_backend": "ollama",
   "ui_backend": "simple",
   "openai_model": "gpt-3.5-turbo",
   "ollama_base_url": "http://localhost:11434/v1",
-  "ollama_model": "llama3.2:1b",
+  "ollama_model": "qwen2.5:1.5b",
   "vosk_model_path": "models/vosk/vosk-model-small-en-us-0.15",
   "vosk_sample_rate": 48000,
   "vosk_chunk_size": 4096,
   "ignore_stt_while_speaking": true,
   "speech_cooldown_seconds": 0.25,
+  "piper_fast_mode": "cli",
+  "piper_model_config": "voices/piper/en_US-joe-medium.onnx.json",
+  "piper_sample_rate": 22050,
   "barge_in_commands": [
     "stop",
     "cancel",
@@ -40,9 +43,9 @@
     "hey hive",
     "hive",
     "good morning",
-    "look who is there"
-    "good day"
-    "greetings"
+    "look who is there",
+    "good day",
+    "greetings",
     "hello"
   ],
   "sleep_commands": [
@@ -52,7 +55,7 @@
     "power off",
     "thank you",
     "good bye",
-    "yeah yeah"
+    "yeah yeah",
     "bye"
   ],
   "wake_responses": [
@@ -77,8 +80,8 @@
   "echo_suppression_enabled": true,
   "echo_base_cooldown_seconds": 2.75,
   "echo_seconds_per_word": 1.0,
-  "echo_max_cooldown_seconds": 15.0,
-  "echo_memory_seconds": 30.0,
+  "echo_max_cooldown_seconds": 30.0,
+  "echo_memory_seconds": 60.0,
   "echo_similarity_threshold": 0.5,
   "echo_word_overlap_threshold": 0.5,
   "echo_short_similarity_threshold": 0.78,
@@ -87,7 +90,8 @@
   "echo_tts_speed_factors": {
     "espeak": 1.0,
     "piper": 4.15,
-    "borg": 3.5
+    "borg": 3.5,
+    "piper_fast": 4.4
   },
   "show_ignored_stt": true,
   "primary_stt_backend": "whispercpp_vad",
@@ -96,7 +100,48 @@
   "echo_hard_guard_enabled": true,
   "echo_hard_guard_fraction": 1.0,
   "echo_hard_guard_min_seconds": 2.2,
-  "echo_hard_guard_max_seconds": 10.0,
+  "echo_hard_guard_max_seconds": 5.0,
   "echo_debug_timing": true,
-  "character": "grumpy_shopkeeper"
+  "character": "grumpy_shopkeeper",
+  "ai_history_messages": 3,
+  "ollama_num_predict": 40,
+  "ollama_num_ctx": 1024,
+  "ollama_temperature": 0.55,
+  "ollama_keep_alive": "30m",
+  "_ollama_model_profile_options": "tiny, small, rpg, vision",
+  "ollama_model_profile": "rpg",
+  "ollama_model_profiles": {
+    "tiny": {
+      "label": "SmolLM2 135M - fastest portable mode",
+      "model": "smollm2:135m",
+      "num_predict": 60,
+      "num_ctx": 1024,
+      "temperature": 0.4,
+      "keep_alive": "30m"
+    },
+    "small": {
+      "label": "Qwen2.5 0.5B - small but less stupid",
+      "model": "qwen2.5:0.5b",
+      "num_predict": 80,
+      "num_ctx": 1024,
+      "temperature": 0.5,
+      "keep_alive": "30m"
+    },
+    "rpg": {
+      "label": "Qwen2.5 1.5B - better character/RPG mode",
+      "model": "qwen2.5:1.5b",
+      "num_predict": 110,
+      "num_ctx": 1536,
+      "temperature": 0.65,
+      "keep_alive": "30m"
+    },
+    "vision": {
+      "label": "Gemma3 4B - vision capable, slower",
+      "model": "gemma3:4b",
+      "num_predict": 120,
+      "num_ctx": 2048,
+      "temperature": 0.55,
+      "keep_alive": "20m"
+    }
+  }
 }
