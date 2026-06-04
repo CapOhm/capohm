@@ -59,3 +59,4 @@ __pycache__/
 EOF
 capohm_stdout.log
 .capohm.pid
+backups/

@@ -1,5 +1,6 @@
 import json
 import os
+import signal
 import shutil
 import subprocess
 import tempfile
@@ -10,19 +11,7 @@ from urllib.request import Request, urlopen
 
 
 class TTS:
-    """ElevenLabs TTS backend for Capohm.
-
-    Drop into: backends/tts_elevenlabs.py
-    Set config.json:
-        "tts_backend": "elevenlabs",
-        "elevenlabs_voice_id": "your_voice_id",
-        "elevenlabs_model_id": "eleven_flash_v2_5",
-        "elevenlabs_output_format": "pcm_16000"
-
-    API key can be set in .env:
-        ELEVENLABS_API_KEY=...
-        ELEVENLABS_VOICE_ID=...
-    """
+    """ElevenLabs TTS backend for Capohm, with stop() and dB volume support."""
 
     def __init__(self, config: dict):
         self.config = config
@@ -43,6 +32,11 @@ class TTS:
         self.enable_logging = bool(config.get("elevenlabs_enable_logging", True))
         self.apply_text_normalization = config.get("elevenlabs_text_normalization", "auto")
         self.voice_settings = config.get("elevenlabs_voice_settings", None)
+        try:
+            self.volume_db = float(config.get("elevenlabs_volume_db", config.get("tts_volume_db", 0.0)) or 0.0)
+        except Exception:
+            self.volume_db = 0.0
+        self.volume_debug = bool(config.get("tts_volume_debug", False))
 
         self._thread = None
         self._process = None
@@ -80,10 +74,14 @@ class TTS:
             proc = self._process
         if proc and proc.poll() is None:
             try:
-                proc.terminate()
+                os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
             except Exception:
-                pass
-        self._process = None
+                try:
+                    proc.terminate()
+                except Exception:
+                    pass
+        with self._lock:
+            self._process = None
 
     def is_speaking(self) -> bool:
         with self._lock:
@@ -101,21 +99,24 @@ class TTS:
             print("[elevenlabs] Missing elevenlabs_voice_id or ELEVENLABS_VOICE_ID", flush=True)
             return
 
-        temp_path = None
+        raw_path = None
+        processed_path = None
         try:
             audio = self._request_audio(text)
             if self._stop_event.is_set() or not audio:
                 return
-            temp_path = self._write_temp_audio(audio)
-            self._play(temp_path)
+            raw_path = self._write_temp_audio(audio)
+            processed_path = self._prepare_playback_path(raw_path)
+            self._play(processed_path)
         except Exception as exc:
             print(f"[elevenlabs] TTS failed: {exc}", flush=True)
         finally:
-            if temp_path:
-                try:
-                    Path(temp_path).unlink(missing_ok=True)
-                except Exception:
-                    pass
+            for path in (raw_path, processed_path):
+                if path:
+                    try:
+                        Path(path).unlink(missing_ok=True)
+                    except Exception:
+                        pass
             with self._lock:
                 self._process = None
 
@@ -157,13 +158,44 @@ class TTS:
             f.write(audio)
         return path
 
+    def _prepare_playback_path(self, path: str) -> str:
+        if self.volume_debug:
+            print(f"[elevenlabs] voice={self.voice_id} volume_db={self.volume_db} format={self.output_format}", flush=True)
+
+        # For raw PCM, convert to WAV with optional dB gain. This makes volume adjustment reliable.
+        if self.output_format.startswith("pcm_"):
+            rate = self.output_format.split("_", 1)[1]
+            fd, out = tempfile.mkstemp(prefix="capohm_elevenlabs_play_", suffix=".wav")
+            os.close(fd)
+            if shutil.which("sox"):
+                cmd = [
+                    "sox", "-q",
+                    "-t", "raw",
+                    "-r", str(rate),
+                    "-e", "signed-integer",
+                    "-b", "16",
+                    "-c", "1",
+                    path,
+                    out,
+                ]
+                if abs(self.volume_db) > 0.01:
+                    cmd += ["gain", f"{self.volume_db:.2f}"]
+                subprocess.run(cmd, check=True)
+                return out
+            else:
+                print("[elevenlabs] sox not installed; volume cannot be adjusted for PCM", flush=True)
+                return path
+
+        # For compressed formats, keep the original file and use player volume where possible.
+        return path
+
     def _play(self, path: str) -> None:
         cmd = self._player_command(path)
         if not cmd:
             print(f"[elevenlabs] No audio player found. Audio saved temporarily at {path}", flush=True)
             return
         with self._lock:
-            self._process = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            self._process = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, preexec_fn=os.setsid)
             proc = self._process
         proc.wait()
 
@@ -175,15 +207,24 @@ class TTS:
             return str(custom).split() + [path]
 
         if self.output_format.startswith("pcm_"):
+            # _prepare_playback_path converts PCM to WAV if sox is available.
+            if path.endswith(".wav") and shutil.which("aplay"):
+                return ["aplay", "-q", path]
             rate = self.output_format.split("_", 1)[1]
             if shutil.which("aplay"):
                 return ["aplay", "-q", "-f", "S16_LE", "-r", rate, "-c", "1", path]
 
-        # MP3 fallback players. Install one with: sudo apt install mpv
         if shutil.which("mpv"):
-            return ["mpv", "--no-terminal", "--really-quiet", path]
+            cmd = ["mpv", "--no-terminal", "--really-quiet"]
+            if abs(self.volume_db) > 0.01:
+                percent = max(1, int(round(100 * (10 ** (self.volume_db / 20.0)))))
+                cmd.append(f"--volume={percent}")
+            return cmd + [path]
         if shutil.which("ffplay"):
-            return ["ffplay", "-nodisp", "-autoexit", "-loglevel", "quiet", path]
+            cmd = ["ffplay", "-nodisp", "-autoexit", "-loglevel", "quiet"]
+            if abs(self.volume_db) > 0.01:
+                cmd.extend(["-af", f"volume={self.volume_db}dB"])
+            return cmd + [path]
         if shutil.which("mpg123"):
             return ["mpg123", "-q", path]
         return None

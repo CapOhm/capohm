@@ -1,5 +1,34 @@
 import threading
 import time
+import re
+
+
+
+SHOPKEEPER_INSULT_WORDS = [
+    "useless", "weak", "stupid", "idiot", "fool", "trash", "garbage", "dump",
+    "cheap", "expired", "senile", "greedy", "smells", "smell", "old weak",
+    "old fool", "moldy", "rotten", "sack of potatoes", "potions are trash",
+    "shop is a dump", "worthless", "pathetic",
+    "waardeloos", "dom", "idioot", "stom", "troep", "vuilnis", "oude zak",
+    "zwak", "seniel", "rot", "stinkt", "prut", "rommel"
+]
+
+SHOPKEEPER_ANGRY_REPLY_WORDS = [
+    "fool", "idiot", "goblin", "turnip", "mold", "moldy", "insult",
+    "trash", "garbage", "whelp", "cur", "pest", "sack", "smell", "boot",
+    "wafer", "waffle", "nitwit", "clod", "barbs", "manners"
+]
+
+
+def is_shopkeeper_insult(text: str) -> bool:
+    t = (text or "").lower()
+    return any(w in t for w in SHOPKEEPER_INSULT_WORDS)
+
+
+def is_shopkeeper_angry_reply(text: str) -> bool:
+    t = (text or "").lower()
+    return any(w in t for w in SHOPKEEPER_ANGRY_REPLY_WORDS)
+
 
 try:
     from ui_bus import send_ui_event
@@ -25,6 +54,7 @@ class UI:
         self.config = config
         self.error_log = config.get("error_log", "capohm_errors.log")
         self.forward_logs = bool(config.get("display_forward_logs", False))
+        self._last_input_emotion = "neutral"
 
     def _character(self) -> str:
         return str(self.config.get("character", "default") or "default")
@@ -58,13 +88,23 @@ class UI:
         if not text:
             return
         self._print(f"Heard: {text}")
-        send_ui_event("heard", text, emotion="listening", character=self._character())
+        heard_emotion = "listening"
+        if self._character() == "grumpy_shopkeeper" and is_shopkeeper_insult(text):
+            heard_emotion = "angry"
+        self._last_input_emotion = heard_emotion
+        send_ui_event("heard", text, emotion=heard_emotion, character=self._character())
 
     def assistant(self, text: str) -> None:
         if not text:
             return
         self._print(f"\nAssistant: {text}\n")
-        send_ui_event("response", text, character=self._character())
+        reply_emotion = None
+        if self._character() == "grumpy_shopkeeper" and (
+            self._last_input_emotion == "angry" or is_shopkeeper_angry_reply(text)
+        ):
+            reply_emotion = "angry"
+        send_ui_event("response", text, emotion=reply_emotion, character=self._character())
+        self._last_input_emotion = "neutral"
 
     def sleep_note(self, text: str) -> None:
         if not text:
